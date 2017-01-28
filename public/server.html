@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta charset="UTF-8">
+	<title>Servidor de Streaming</title>
+</head>
+<body>
+    <h1>Servidor de Streaming</h1>
+	<p>Esta página transmite en tiempo real el streaming de la camara web</p>
+	<video id="video"></video>
+	<canvas id="canvas" width="1280" height="720"></canvas>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        (function (d, w, io) {
+            'use strict';
+            var startCamera = false,
+				video = d.querySelector('#video'),
+				canvas = d.querySelector('#canvas'),
+				context = canvas.getContext('2d');
+			navigator.streaming = (
+				navigator.getUserMedia ||
+				navigator.webkitGetUserMedia ||
+				navigator.mozGetUserMedia ||
+				navigator.msGetUserMedia
+			);
+            navigator.streaming(
+                {
+                    video: true,
+                    audio: false
+                },
+                function (stream) {
+                    startCamera = true;
+                    video.src = w.URL.createObjectURL(stream);
+                },
+                function (err) {
+                    alert('error al acceder a la cámara web: ' + err);
+                }
+            );
+            w.playVideo = (function (cb) {
+                return w.requestAnimationFrame ||
+					w.webkitRequestAnimationFrame ||
+					w.mozRequestAnimationFrame ||
+					w.msRequestAnimationFrame ||
+					function (cb) {
+						w.setTimeout(cb,1000/100);
+					}
+            })();
+            function streamVideo(context, video, canvas) {
+                var outputStream = canvas.toDataURL('image/jpeg', 1);
+                context.drawImage(video, 0, 0);
+                if (startCamera) {
+                    io.emit('streaming', outputStream);
+                }
+                playVideo(function () {
+                    streamVideo(context, video, canvas);
+                });
+            }
+            w.addEventListener('load', function () {
+                video.style.display = 'none';
+                video.autoplay = true;
+                streamVideo(context, video, canvas);
+            });
+        })(document, window, io());
+    </script>
+</body>
+</html>
